@@ -1,5 +1,7 @@
 defmodule Baresex.Command.Call do
-  @moduledoc false
+  @moduledoc """
+  Call command
+  """
   alias Baresex.Command
 
   def accept(token \\ nil) do

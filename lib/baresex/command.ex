@@ -1,5 +1,7 @@
 defmodule Baresex.Command do
-  @moduledoc false
+  @moduledoc """
+  Command module
+  """
 
   defstruct [:command, :params, :token]
 

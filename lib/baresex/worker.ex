@@ -1,5 +1,7 @@
 defmodule Baresex.Worker do
-  @moduledoc false
+  @moduledoc """
+  Process that communicates with Baresip over TCP socket.
+  """
   use GenServer
   alias Baresex.Protocol
 
@@ -8,10 +10,14 @@ defmodule Baresex.Worker do
             messages: "",
             subscribers: %{}
 
-  def start_link(address, port, name) do
-    GenServer.start_link(__MODULE__, [address: address, port: port], name: name)
+  @doc """
+
+  """
+  def start_link(address \\ "127.0.0.1", port \\ "4444") do
+    GenServer.start_link(__MODULE__, [address: address, port: port], name: __MODULE__)
   end
 
+  @doc false
   def init(opts) do
     conn_str = "tcp://#{opts[:address]}:#{opts[:port]}"
     {:ok, p} = Socket.connect(conn_str)
@@ -19,19 +25,27 @@ defmodule Baresex.Worker do
     {:ok, %__MODULE__{conn: p, conn_str: conn_str}}
   end
 
-  def subscribe(aor) do
-    GenServer.call(__MODULE__, {:subscribe, {self(), aor}})
+  @doc """
+  Subscribe
+  """
+  def subscribe(username, domain \\ "localhost") do
+    GenServer.call(__MODULE__, {:subscribe, {self(), "sip:#{username}@#{domain}"}})
   end
 
-  def process(server, commands) do
-    GenServer.cast(server, {:process, commands})
+  @doc """
+  Send list of commands to Baresip
+  """
+  def process(commands) do
+    GenServer.cast(__MODULE__, {:process, commands})
   end
 
+  @doc false
   def handle_call({:subscribe, {pid, aor}}, _, state) do
     subscribers = update_in(state.subscribers, [aor], &add_subscriber(&1, pid))
     {:reply, :ok, %{state | subscribers: subscribers}}
   end
 
+  @doc false
   def handle_cast({:process, commands}, state) do
     process_commands(commands, state.conn)
     {:noreply, state}

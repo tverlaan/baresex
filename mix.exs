@@ -8,7 +8,10 @@ defmodule Baresex.MixProject do
       elixir: "~> 1.7",
       build_embedded: true,
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      docs: [
+        nest_modules_by_prefix: [Baresex.Command]
+      ]
     ]
   end
 
@@ -20,6 +23,7 @@ defmodule Baresex.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:ex_doc, "~> 0.20", runtime: false, only: :dev},
       {:socket, "~> 0.3"},
       {:jason, "~> 1.0"}
     ]
