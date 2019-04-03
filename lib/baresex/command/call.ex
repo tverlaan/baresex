@@ -1,6 +1,6 @@
 defmodule Baresex.Command.Call do
   @moduledoc """
-  Call command
+  Call commands
   """
   alias Baresex.Command
 
