@@ -1,6 +1,7 @@
 defmodule Baresex do
   @moduledoc """
-  Main entrypoint to quickly create commands for `Baresex.Worker.process/1`
+  Main entrypoint to interact with BareSIP.
+  First start the `Baresex.Worker` in your own supervision tree.
   """
   alias Baresex.{Command.UA, Command.Call}
 
