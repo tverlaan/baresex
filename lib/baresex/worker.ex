@@ -3,7 +3,9 @@ defmodule Baresex.Worker do
   Process that communicates with Baresip over TCP socket.
   """
   use GenServer
-  alias Baresex.Protocol
+  alias Baresex.{Protocol, Event}
+
+  @events_with_accounts [Baresex.Event.Call, Baresex.Event.Register]
 
   defstruct conn: nil,
             conn_str: "",
@@ -81,13 +83,17 @@ defmodule Baresex.Worker do
     do: %{state | messages: ""}
 
   defp publish_event(state) do
-    {event, tail} =
+    {message, tail} =
       state.messages
       |> Protocol.decode()
 
-    state.subscribers
-    |> Map.get(event["accountaor"], [])
-    |> send_event(event)
+    event = Event.new(message)
+
+    if subscribable?(event) do
+      state.subscribers
+      |> Map.get(event.account, [])
+      |> send_event(event)
+    end
 
     publish_next()
     put_in(state.messages, tail)
@@ -126,6 +132,9 @@ defmodule Baresex.Worker do
       [subscriber | list]
     end
   end
+
+  defp subscribable?(%{__struct__: struct}) when struct in @events_with_accounts, do: true
+  defp subscribable?(_), do: false
 
   # Spawns an attendant process for (blocking) message receiving.
   defp receive_message(conn) do
