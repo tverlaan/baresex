@@ -25,6 +25,7 @@ defmodule Baresex.MixProject do
     [
       {:ex_doc, "~> 0.20", runtime: false, only: :dev},
       {:socket, "~> 0.3"},
+      {:connection, "~> 1.0"},
       {:jason, "~> 1.0"}
     ]
   end

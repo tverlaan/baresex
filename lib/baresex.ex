@@ -10,7 +10,7 @@ defmodule Baresex do
   """
   def uanew(username, domain \\ "localhost") do
     [UA.new("sip:#{username}@#{domain}")]
-    |> Baresex.Worker.process()
+    |> Baresex.Worker.send()
   end
 
   @doc """
@@ -18,7 +18,7 @@ defmodule Baresex do
   """
   def uadel(username, domain \\ "localhost") do
     [UA.delete("sip:#{username}@#{domain}")]
-    |> Baresex.Worker.process()
+    |> Baresex.Worker.send()
   end
 
   @doc """
@@ -29,7 +29,7 @@ defmodule Baresex do
       UA.select("sip:#{username}@#{domain}"),
       Call.dial(dest)
     ]
-    |> Baresex.Worker.process()
+    |> Baresex.Worker.send()
   end
 
   @doc """
@@ -40,7 +40,7 @@ defmodule Baresex do
       UA.select("sip:#{username}@#{domain}"),
       Call.accept()
     ]
-    |> Baresex.Worker.process()
+    |> Baresex.Worker.send()
   end
 
   @doc """
@@ -51,7 +51,7 @@ defmodule Baresex do
       UA.select("sip:#{username}@#{domain}"),
       Call.dtmf(digits)
     ]
-    |> Baresex.Worker.process()
+    |> Baresex.Worker.send()
   end
 
   @doc """
@@ -62,7 +62,7 @@ defmodule Baresex do
       UA.select("sip:#{username}@#{domain}"),
       Call.hangup()
     ]
-    |> Baresex.Worker.process()
+    |> Baresex.Worker.send()
   end
 
   @doc """
@@ -73,6 +73,6 @@ defmodule Baresex do
       UA.select("sip:#{username}@#{domain}"),
       Call.transfer(dest)
     ]
-    |> Baresex.Worker.process()
+    |> Baresex.Worker.send()
   end
 end

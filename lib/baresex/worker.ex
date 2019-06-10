@@ -2,43 +2,70 @@ defmodule Baresex.Worker do
   @moduledoc """
   Process that communicates with Baresip over TCP socket.
   """
-  use GenServer
+  use Connection
   alias Baresex.{Protocol, Event}
 
   @events_with_accounts [Baresex.Event.Call, Baresex.Event.Register]
 
-  defstruct conn: nil,
-            conn_str: "",
+  defstruct sock: nil,
+            host: "",
+            port: 0,
+            opts: [],
+            timeout: 5000,
             messages: "",
             subscribers: %{}
 
   @doc """
 
   """
-  def start_link(address \\ "127.0.0.1", port \\ "4444") do
-    GenServer.start_link(__MODULE__, [address: address, port: port], name: __MODULE__)
+  def start_link(host \\ "127.0.0.1", port \\ 4444) do
+    Connection.start_link(__MODULE__, {host, port, [], 5000}, name: __MODULE__)
   end
 
   @doc false
-  def init(opts) do
-    conn_str = "tcp://#{opts[:address]}:#{opts[:port]}"
-    {:ok, p} = Socket.connect(conn_str)
-    receive_message(p)
-    {:ok, %__MODULE__{conn: p, conn_str: conn_str}}
+  def init({host, port, opts, timeout}) do
+    s = %__MODULE__{host: to_charlist(host), port: port, opts: opts, timeout: timeout, sock: nil}
+    {:connect, :init, s}
+  end
+
+  def connect(_, %{sock: nil, host: host, port: port} = s) do
+    case Socket.connect("tcp://#{host}:#{port}") do
+      {:ok, sock} ->
+        receive_message(sock)
+        {:ok, %{s | sock: sock}}
+
+      {:error, _} ->
+        {:backoff, 1000, s}
+    end
+  end
+
+  def disconnect(info, %{sock: sock} = s) do
+    :ok = Socket.close(sock)
+
+    case info do
+      {:close, from} ->
+        Connection.reply(from, :ok)
+
+      {:error, :closed} ->
+        :error_logger.format("Connection closed~n", [])
+
+      {:error, reason} ->
+        reason = :inet.format_error(reason)
+        :error_logger.format("Connection error: ~s~n", [reason])
+    end
+
+    {:connect, :reconnect, %{s | sock: nil}}
   end
 
   @doc """
   Subscribe
   """
   def subscribe(username, domain \\ "localhost") do
-    GenServer.call(__MODULE__, {:subscribe, {self(), "sip:#{username}@#{domain}"}})
+    Connection.call(__MODULE__, {:subscribe, {self(), "sip:#{username}@#{domain}"}})
   end
 
-  @doc """
-  Send list of commands to Baresip
-  """
-  def process(commands) do
-    GenServer.cast(__MODULE__, {:process, commands})
+  def send(messages) do
+    Connection.call(__MODULE__, {:send, messages})
   end
 
   @doc false
@@ -48,13 +75,18 @@ defmodule Baresex.Worker do
   end
 
   @doc false
-  def handle_cast({:process, commands}, state) do
-    process_commands(commands, state.conn)
-    {:noreply, state}
+  def handle_call({:send, messages}, _, %{sock: sock} = s) do
+    case send_messages(messages, sock) do
+      :ok ->
+        {:reply, :ok, s}
+
+      {:error, _} = error ->
+        {:disconnect, error, error, s}
+    end
   end
 
-  def handle_cast({:close, _}, state) do
-    {:stop, :normal, state}
+  def handle_cast({:close, error}, s) do
+    {:disconnect, error, s}
   end
 
   def handle_cast(:publish, state) do
@@ -63,7 +95,7 @@ defmodule Baresex.Worker do
   end
 
   def handle_cast({:receive, msg}, state) do
-    receive_message(state.conn)
+    receive_message(state.sock)
 
     state =
       state
@@ -100,18 +132,18 @@ defmodule Baresex.Worker do
   end
 
   defp publish_next() do
-    GenServer.cast(self(), :publish)
+    Connection.cast(self(), :publish)
   end
 
-  defp process_commands([], _), do: :ok
+  defp send_messages([], _), do: :ok
 
-  defp process_commands([command | t], conn) do
-    msg =
-      command
-      |> Protocol.encode()
+  defp send_messages([message | t], sock) do
+    msg = Protocol.encode(message)
 
-    Socket.Stream.send(conn, msg)
-    process_commands(t, conn)
+    case Socket.Stream.send(sock, msg) do
+      :ok -> send_messages(t, sock)
+      {:error, _} = e -> e
+    end
   end
 
   defp send_event([], _), do: :ok
@@ -137,16 +169,19 @@ defmodule Baresex.Worker do
   defp subscribable?(_), do: false
 
   # Spawns an attendant process for (blocking) message receiving.
-  defp receive_message(conn) do
+  defp receive_message(sock) do
     master = self()
 
     spawn(fn ->
-      case Socket.Stream.recv(conn) do
+      case Socket.Stream.recv(sock) do
         {:ok, msg} when msg != nil ->
-          GenServer.cast(master, {:receive, msg})
+          Connection.cast(master, {:receive, msg})
 
-        e ->
-          GenServer.cast(master, {:close, e})
+        {:ok, nil} ->
+          Connection.cast(master, {:receive, ""})
+
+        {:error, _} = e ->
+          Connection.cast(master, {:close, e})
       end
     end)
   end
