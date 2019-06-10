@@ -64,4 +64,15 @@ defmodule Baresex do
     ]
     |> Baresex.Worker.process()
   end
+
+  @doc """
+  Transfer a call
+  """
+  def transfer(dest, username, domain \\ "localhost") do
+    [
+      UA.select("sip:#{username}@#{domain}"),
+      Call.transfer(dest)
+    ]
+    |> Baresex.Worker.process()
+  end
 end

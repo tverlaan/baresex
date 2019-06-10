@@ -25,4 +25,10 @@ defmodule Baresex.Command.Call do
     |> Command.add_params(code)
     |> Command.add_token(token)
   end
+
+  def transfer(dest, token \\ nil) do
+    Command.new("transfer")
+    |> Command.add_params(dest)
+    |> Command.add_token(token)
+  end
 end
