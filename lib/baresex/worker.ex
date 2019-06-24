@@ -28,13 +28,13 @@ defmodule Baresex.Worker do
   @doc """
 
   """
-  def start_link(host \\ "127.0.0.1", port \\ 4444) do
-    Connection.start_link(__MODULE__, {host, port, [], 5000}, name: __MODULE__)
+  def start_link(host \\ "127.0.0.1", port \\ 4444, name \\ __MODULE__) do
+    Connection.start_link(__MODULE__, {host, port, [], 5000}, name: name)
   end
 
   @doc false
   def init({host, port, opts, timeout}) do
-    s = %__MODULE__{host: to_charlist(host), port: port, opts: opts, timeout: timeout, sock: nil}
+    s = %__MODULE__{host: host, port: port, opts: opts, timeout: timeout, sock: nil}
     {:connect, :init, s}
   end
 
@@ -70,12 +70,20 @@ defmodule Baresex.Worker do
   @doc """
   Subscribe
   """
-  def subscribe(username, domain \\ "localhost") do
-    Connection.call(__MODULE__, {:subscribe, {self(), "sip:#{username}@#{domain}"}})
+  def subscribe(uri) do
+    subscribe(__MODULE__, uri)
   end
 
-  def send(messages) do
-    Connection.call(__MODULE__, {:send, messages})
+  def subscribe(server, uri) do
+    Connection.call(server, {:subscribe, {self(), uri}})
+  end
+
+  def process(commands) do
+    process(__MODULE__, commands)
+  end
+
+  def process(server, commands) do
+    Connection.call(server, {:process, commands})
   end
 
   @doc false
@@ -85,8 +93,8 @@ defmodule Baresex.Worker do
   end
 
   @doc false
-  def handle_call({:send, messages}, _, %{sock: sock} = s) do
-    case send_messages(messages, sock) do
+  def handle_call({:process, commands}, _, %{sock: sock} = s) do
+    case send_commands(commands, sock) do
       :ok ->
         {:reply, :ok, s}
 
@@ -145,13 +153,13 @@ defmodule Baresex.Worker do
     Connection.cast(self(), :publish)
   end
 
-  defp send_messages([], _), do: :ok
+  defp send_commands([], _), do: :ok
 
-  defp send_messages([message | t], sock) do
+  defp send_commands([message | t], sock) do
     msg = Protocol.encode(message)
 
     case Socket.Stream.send(sock, msg) do
-      :ok -> send_messages(t, sock)
+      :ok -> send_commands(t, sock)
       {:error, _} = e -> e
     end
   end

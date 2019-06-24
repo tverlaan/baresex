@@ -1,6 +1,12 @@
 sudo: false
 language: elixir
 otp_release:
-  - 21.1
+  - 21.3
+  - 22.0
 elixir:
-  - 1.7
+  - 1.8.2
+script:
+  - mix deps.compile
+  - mix compile --warnings-as-errors
+  - mix test
+  - mix format --check-formatted

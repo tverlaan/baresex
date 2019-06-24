@@ -10,27 +10,27 @@ The basic example assumes you have a proxy or a gateway running locally on port 
 
 ```elixir
 # create UACs
-Baresex.uanew("alice")
-Baresex.uanew("bob")
+Baresex.uanew("sip:alice@proxy")
+Baresex.uanew("sip:bob@proxy")
 
 # subscribe to events from bob
-Baresex.Worker.subscribe("bob")
+Baresex.Worker.subscribe("sip:bob@proxy")
 
 # call bob from alice
-Baresex.dial("bob", "alice")
+Baresex.dial("sip:alice@proxy", "bob")
 
 # accept the call
 receive do
   %Baresex.Event.Call{} ->
-    Baresex.accept("bob")
+    Baresex.accept("sip:bob@proxy")
 end
 
 # hangup
-Baresex.hangup("bob")
+Baresex.hangup("sip:bob@proxy")
 
 # delete UACs
-Baresex.uadel("alice")
-Baresex.uadel("bob")
+Baresex.uadel("sip:alice@proxy")
+Baresex.uadel("sip:bob@proxy")
 ```
 
 ## BareSIP configuration
